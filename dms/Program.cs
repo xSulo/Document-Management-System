@@ -6,7 +6,8 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddDbContext<DocumentContext>(opt =>
-    opt.UseInMemoryDatabase("DocumentDb")); // fürs Sprint-1-Mocking
+    opt.UseNpgsql(builder.Configuration.GetConnectionString("Postgres")));
+
 
 builder.Services.AddScoped<IDocumentRepository, DocumentRepository>();
 builder.Services.AddControllers();

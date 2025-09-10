@@ -13,7 +13,8 @@
     ports: ["8080:8080"]
     environment:
       ASPNETCORE_URLS: http://+:8080
-      # später: ConnectionStrings__Postgres: Host=db;Database=dmsdb;Username=dms;Password=dmsPW
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__Postgres: Host=db;Port=5432;Database=dmsdb;Username=dms;Password=dmsPW
     depends_on: [db]
 
 volumes:
