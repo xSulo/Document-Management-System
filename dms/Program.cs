@@ -18,6 +18,13 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
+using (var scope = app.Services.CreateScope())
+{
+    var ctx = scope.ServiceProvider.GetRequiredService<DocumentContext>();
+    ctx.Database.Migrate();   // erstellt/aktualisiert Tabellen
+}
+
+
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
