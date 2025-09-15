@@ -1,0 +1,20 @@
+### Create
+POST http://localhost:8080/api/documents
+Content-Type: application/json
+
+{ "title":"Hello.pdf","filePath":"/files/hello.pdf" }
+
+### List
+GET http://localhost:8080/api/documents
+
+### Get by id
+GET http://localhost:8080/api/documents/1
+
+### Update
+PUT http://localhost:8080/api/documents/3
+Content-Type: application/json
+
+{ "title":"Hello_v2.pdf","filePath":"/files/hello_v2.pdf" }
+
+### Delete
+DELETE http://localhost:8080/api/documents/1
