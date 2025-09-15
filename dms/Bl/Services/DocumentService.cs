@@ -3,6 +3,8 @@ using dms.Bl.Entities;
 using dms.Dal;
 using dms.Dal.Entities;
 
+namespace dms.Bl.Services;
+
 public class DocumentService : IDocumentService
 {
     private readonly IDocumentRepository _repo;

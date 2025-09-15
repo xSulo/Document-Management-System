@@ -1,4 +1,5 @@
-﻿using dms.Models;
+﻿using dms.Dal;
+using dms.Dal.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace dms.Dal;
