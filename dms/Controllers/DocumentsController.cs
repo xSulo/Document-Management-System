@@ -5,11 +5,13 @@ using Microsoft.AspNetCore.Mvc;
 namespace dms.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
-public class DocumentsController : ControllerBase
+[Route("api/[controller]")] // define base url /api/documents
+public class DocumentsController : ControllerBase // base because no view needed
 {
     private readonly IDocumentRepository _repo;
     public DocumentsController(IDocumentRepository repo) => _repo = repo;
+
+    // ActionResult allows both return types (Ok, NotFound, etc.) and data (Document, IEnumerable<Document>)
 
     [HttpGet]
     public async Task<ActionResult<IEnumerable<Document>>> GetAll() =>
