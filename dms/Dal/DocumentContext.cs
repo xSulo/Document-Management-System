@@ -1,6 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 
-namespace dms.Models;
+namespace dms.Dal;
 
 public class DocumentContext : DbContext
 {

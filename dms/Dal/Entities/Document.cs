@@ -1,4 +1,4 @@
-﻿namespace dms.Models;
+﻿namespace dms.Dal.Entities;
 
 public class Document
 {
