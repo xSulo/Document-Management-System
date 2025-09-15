@@ -1,5 +1,5 @@
-using dms.Dal;
-using dms.Models;
+using dms.Bl.Entities;
+using dms.Bl.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace dms.Controllers;
@@ -8,37 +8,37 @@ namespace dms.Controllers;
 [Route("api/[controller]")] // define base url /api/documents
 public class DocumentsController : ControllerBase // base because no view needed
 {
-    private readonly IDocumentRepository _repo;
-    public DocumentsController(IDocumentRepository repo) => _repo = repo;
+    private readonly IDocumentService _svc;
+    public DocumentsController(IDocumentService svc) => _svc = svc;
 
     // ActionResult allows both return types (Ok, NotFound, etc.) and data (Document, IEnumerable<Document>)
 
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<Document>>> GetAll() =>
-        Ok(await _repo.GetAllAsync());
+    public async Task<ActionResult<IEnumerable<BlDocument>>> GetAll() =>
+        Ok(await _svc.GetAllAsync());
 
     [HttpGet("{id:long}")]
-    public async Task<ActionResult<Document>> GetById(long id)
+    public async Task<ActionResult<BlDocument>> GetById(long id)
     {
-        var doc = await _repo.GetByIdAsync(id);
+        var doc = await _svc.GetByIdAsync(id);
         return doc is null ? NotFound() : Ok(doc);
     }
 
     [HttpPost]
-    public async Task<ActionResult<Document>> Create(Document doc)
+    public async Task<ActionResult<BlDocument>> Create([FromBody] BlDocument input)
     {
-        var created = await _repo.AddAsync(doc);
+        var created = await _svc.AddAsync(input);
         return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
     }
 
     [HttpPut("{id:long}")]
-    public async Task<IActionResult> Update(long id, Document doc)
+    public async Task<IActionResult> Update(long id, [FromBody] BlDocument input)
     {
-        if (id != doc.Id) return BadRequest("ID mismatch");
-        return await _repo.UpdateAsync(doc) ? NoContent() : NotFound();
+        input.Id = id;
+        return await _svc.UpdateAsync(input) ? NoContent() : NotFound();
     }
 
     [HttpDelete("{id:long}")]
     public async Task<IActionResult> Delete(long id) =>
-        await _repo.DeleteAsync(id) ? NoContent() : NotFound();
+        await _svc.DeleteAsync(id) ? NoContent() : NotFound();
 }
