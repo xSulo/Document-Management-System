@@ -1,4 +1,4 @@
-﻿using dms.Models;
+﻿using dms.Dal.Entities;
 
 namespace dms.Dal;
 

@@ -1,4 +1,6 @@
 using dms.Dal;
+using dms.Bl.Services;
+using dms.Bl.Mapping;
 using Microsoft.EntityFrameworkCore;
 
 // host loading configurations, di container, logging
@@ -11,6 +13,11 @@ builder.Services.AddDbContext<DocumentContext>(opt =>
 // Add services to the container
 builder.Services.AddScoped<IDocumentRepository, DocumentRepository>();
 builder.Services.AddScoped<IDocumentService, DocumentService>();
+builder.Services.AddAutoMapper(cfg =>
+{
+    cfg.AddProfile<DocumentProfile>();
+});
+
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 builder.Services.AddEndpointsApiExplorer();
