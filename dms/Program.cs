@@ -11,6 +11,7 @@ builder.Services.AddDbContext<DocumentContext>(opt =>
 
 // Add services to the container
 builder.Services.AddScoped<IDocumentRepository, DocumentRepository>();
+builder.Services.AddScoped<IDocumentService, DocumentService>();
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 builder.Services.AddEndpointsApiExplorer();
@@ -20,7 +21,7 @@ builder.Services.AddSwaggerGen();
 var app = builder.Build();
 
 using (var scope = app.Services.CreateScope()) // create scope to get dbcontext to migrate
-{
+{   
     var ctx = scope.ServiceProvider.GetRequiredService<DocumentContext>();
     ctx.Database.Migrate();   // creates/updates tables
 }
