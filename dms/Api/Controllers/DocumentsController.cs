@@ -21,35 +21,50 @@ public class DocumentsController : ControllerBase // base because no view needed
     // ActionResult allows both return types (Ok, NotFound, etc.) and data (Document, IEnumerable<Document>)
 
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<BlDocument>>> GetAll() =>
-        Ok(await _svc.GetAllAsync());
+    [ProducesResponseType(typeof(IEnumerable<DocumentDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IEnumerable<DocumentDto>>> GetAll()
+    {
+        var docs = await _svc.GetAllAsync();
+        return Ok(_mapper.Map<IEnumerable<DocumentDto>>(docs));
+    }
 
     [HttpGet("{id:long}")]
-    public async Task<ActionResult<BlDocument>> GetById(long id)
+    [ProducesResponseType(typeof(DocumentDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<DocumentDto>> GetById(long id)
     {
         var doc = await _svc.GetByIdAsync(id);
-        return doc is null ? NotFound() : Ok(doc);
+        return doc is null ? NotFound() : Ok(_mapper.Map<DocumentDto>(doc));
     }
 
     [HttpPost]
-    public async Task<ActionResult<BlDocument>> Create([FromBody] DocumentCreateDto input)
+    [ProducesResponseType(typeof(DocumentDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<DocumentDto>> Create([FromBody] DocumentCreateDto input)
     {
         var entity = _mapper.Map<BlDocument>(input);
         var created = await _svc.AddAsync(entity);
         var dto = _mapper.Map<DocumentDto>(created);
-        return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
+        return CreatedAtAction(nameof(GetById), new { id = dto.Id }, dto);
     }
 
     [HttpPut("{id:long}")]
-    public async Task<IActionResult> Update(long id, [FromBody] DocumentCreateDto input)
+    [ProducesResponseType(typeof(DocumentDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Update(long id, [FromBody] DocumentUpdateDto input)
     {
         var entity = _mapper.Map<BlDocument>(input);
         entity.Id = id;
         var updated = await _svc.UpdateAsync(entity);
-        return updated ? NoContent() : NotFound();
+        if (!updated) return NotFound();
+
+        var result = _mapper.Map<DocumentDto>(entity);
+        return Ok(result);
     }
 
     [HttpDelete("{id:long}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(long id) =>
         await _svc.DeleteAsync(id) ? NoContent() : NotFound();
 }

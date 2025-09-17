@@ -8,6 +8,8 @@ public class DocumentProfile : Profile
 {
     public DocumentProfile()
     {
-        CreateMap<Document, BlDocument>().ReverseMap();
+        CreateMap<BlDocument, Document>()
+            .ForMember(dest => dest.UploadedAt, opt => opt.Ignore());
+        CreateMap<Document, BlDocument>();
     }
 }
