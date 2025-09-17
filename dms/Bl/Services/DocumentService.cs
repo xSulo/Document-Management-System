@@ -1,7 +1,8 @@
 using AutoMapper;
 using dms.Bl.Entities;
-using dms.Dal;
+using dms.Bl.Interfaces;
 using dms.Dal.Entities;
+using dms.Dal.Interfaces;
 
 namespace dms.Bl.Services;
 

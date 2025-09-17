@@ -1,8 +1,9 @@
-﻿using dms.Dal;
+﻿using dms.Dal.Context;
 using dms.Dal.Entities;
+using dms.Dal.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
-namespace dms.Dal;
+namespace dms.Dal.Repositories;
 
 public class DocumentRepository : IDocumentRepository
 {

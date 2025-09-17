@@ -1,6 +1,6 @@
 ﻿using dms.Dal.Entities;
 
-namespace dms.Dal;
+namespace dms.Dal.Interfaces;
 
 public interface IDocumentRepository
 {

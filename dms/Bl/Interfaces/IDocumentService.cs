@@ -1,6 +1,6 @@
 using dms.Bl.Entities;
 
-namespace dms.Bl.Services;
+namespace dms.Bl.Interfaces;
 
 public interface IDocumentService
 {

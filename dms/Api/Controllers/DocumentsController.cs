@@ -1,8 +1,8 @@
 using dms.Bl.Entities;
-using dms.Bl.Services;
+using dms.Bl.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
-namespace dms.Controllers;
+namespace dms.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")] // define base url /api/documents
