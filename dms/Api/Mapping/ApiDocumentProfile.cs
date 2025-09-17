@@ -8,6 +8,7 @@ public class ApiDocumentProfile : Profile
 {
     public ApiDocumentProfile()
     {
+        CreateMap<DocumentCreateDto, BlDocument>();
         CreateMap<BlDocument, DocumentDto>().ReverseMap();
     }
 }
