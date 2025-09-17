@@ -8,10 +8,8 @@ using dms.Dal.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
-// host loading configurations, di container, logging
 var builder = WebApplication.CreateBuilder(args);
 
-// load documentctx into di container & configure ef core to use postgres
 builder.Services.AddDbContext<DocumentContext>(opt =>
     opt.UseNpgsql(builder.Configuration.GetConnectionString("Postgres")));
 
@@ -45,10 +43,10 @@ if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi(); // create static json file /openapi/v1.json
     app.UseSwagger(); // http://localhost:5032/swagger/v1/swagger.json creates dynamic json file
-    app.UseSwaggerUI(); // takes dynamic json file and creates nice ui
+    app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection(); // security, redirect HTTP to HTTPS
-app.UseAuthorization(); // entry
-app.MapControllers(); // api endpoints
-app.Run(); // starts the app
+app.UseHttpsRedirection();
+app.UseAuthorization();
+app.MapControllers();
+app.Run();

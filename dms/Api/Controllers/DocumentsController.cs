@@ -7,8 +7,8 @@ using Microsoft.AspNetCore.Mvc;
 namespace dms.Api.Controllers;
 
 [ApiController]
-[Route("api/[controller]")] // define base url /api/documents
-public class DocumentsController : ControllerBase // base because no view needed
+[Route("api/[controller]")]
+public class DocumentsController : ControllerBase
 {
     private readonly IDocumentService _svc;
     private readonly IMapper _mapper;
@@ -17,8 +17,6 @@ public class DocumentsController : ControllerBase // base because no view needed
         _svc = svc;
         _mapper = mapper;
     }
-
-    // ActionResult allows both return types (Ok, NotFound, etc.) and data (Document, IEnumerable<Document>)
 
     [HttpGet]
     [ProducesResponseType(typeof(IEnumerable<DocumentDto>), StatusCodes.Status200OK)]
