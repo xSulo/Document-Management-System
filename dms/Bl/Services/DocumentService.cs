@@ -12,7 +12,8 @@ public class DocumentService : IDocumentService
     private readonly IMapper _mapper;     
     public DocumentService(IDocumentRepository repo, IMapper mapper)
     {
-        _repo = repo; _mapper = mapper;
+        _repo = repo; 
+        _mapper = mapper;
     }
 
     public async Task<IReadOnlyList<BlDocument>> GetAllAsync() =>
