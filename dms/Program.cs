@@ -1,7 +1,10 @@
 using dms.Api.Mapping;
+using dms.Bl.Interfaces;
 using dms.Bl.Mapping;
 using dms.Bl.Services;
-using dms.Dal;
+using dms.Dal.Context;
+using dms.Dal.Interfaces;
+using dms.Dal.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 

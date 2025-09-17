@@ -1,7 +1,7 @@
 ﻿using dms.Dal.Entities;
 using Microsoft.EntityFrameworkCore;
 
-namespace dms.Dal;
+namespace dms.Dal.Context;
 
 public class DocumentContext : DbContext
 {

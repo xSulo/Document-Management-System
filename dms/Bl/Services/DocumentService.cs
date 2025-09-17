@@ -1,7 +1,8 @@
 using AutoMapper;
 using dms.Bl.Entities;
-using dms.Dal;
+using dms.Bl.Interfaces;
 using dms.Dal.Entities;
+using dms.Dal.Interfaces;
 
 namespace dms.Bl.Services;
 
@@ -11,7 +12,8 @@ public class DocumentService : IDocumentService
     private readonly IMapper _mapper;     
     public DocumentService(IDocumentRepository repo, IMapper mapper)
     {
-        _repo = repo; _mapper = mapper;
+        _repo = repo; 
+        _mapper = mapper;
     }
 
     public async Task<IReadOnlyList<BlDocument>> GetAllAsync() =>

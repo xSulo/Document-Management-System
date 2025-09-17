@@ -1,7 +1,8 @@
 ﻿using System;
 using System.Threading.Tasks;
-using dms.Dal;
+using dms.Dal.Context;
 using dms.Dal.Entities;
+using dms.Dal.Repositories;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
