@@ -7,6 +7,8 @@ using dms.Dal.Interfaces;
 using dms.Dal.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using FluentValidation;
+using dms.Validation;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -28,6 +30,7 @@ builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddValidatorsFromAssemblyContaining<DocumentValidator>();
 
 // Build the application host with all registered services and configuration
 var app = builder.Build();

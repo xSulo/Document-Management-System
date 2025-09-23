@@ -1,4 +1,5 @@
 using AutoMapper;
+using FluentValidation;
 using dms.Bl.Entities;
 using dms.Bl.Interfaces;
 using dms.Dal.Entities;
@@ -9,10 +10,13 @@ namespace dms.Bl.Services;
 public class DocumentService : IDocumentService
 {
     private readonly IDocumentRepository _repo;
-    private readonly IMapper _mapper;     
-    public DocumentService(IDocumentRepository repo, IMapper mapper)
+    private readonly IValidator<BlDocument> _validator;
+    private readonly IMapper _mapper;
+
+    public DocumentService(IDocumentRepository repo, IValidator<BlDocument> validator, IMapper mapper)
     {
-        _repo = repo; 
+        _repo = repo;
+        _validator = validator;
         _mapper = mapper;
     }
 
@@ -27,8 +31,7 @@ public class DocumentService : IDocumentService
 
     public async Task<BlDocument> AddAsync(BlDocument doc)
     {
-        if (string.IsNullOrWhiteSpace(doc.Title))
-            throw new ArgumentException("Title is required.", nameof(doc.Title));
+        await _validator.ValidateAndThrowAsync(doc, opts => opts.IncludeRuleSets("Create"));
 
         var dal = _mapper.Map<Document>(doc);
         var created = await _repo.AddAsync(dal);
@@ -37,6 +40,8 @@ public class DocumentService : IDocumentService
 
     public async Task<bool> UpdateAsync(BlDocument doc)
     {
+        await _validator.ValidateAndThrowAsync(doc, opts => opts.IncludeRuleSets("Update"));
+
         var dal = _mapper.Map<Document>(doc);
         return await _repo.UpdateAsync(dal);
     }
