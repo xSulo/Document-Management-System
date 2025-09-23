@@ -1,6 +1,8 @@
 using FluentValidation;
 using dms.Bl.Entities;
 
+namespace dms.Validation;
+
 public class DocumentValidator : AbstractValidator<BlDocument>
 {
     static bool ExtOk(string p) =>

@@ -31,7 +31,8 @@ public class DocumentService : IDocumentService
 
     public async Task<BlDocument> AddAsync(BlDocument doc)
     {
-        await _validator.ValidateAndThrowAsync(doc, opts => opts.IncludeRuleSets("Create"));
+        var res = await _validator.ValidateAsync(doc, o => o.IncludeRuleSets("Create"));
+        if (!res.IsValid) throw new ValidationException(res.Errors);
 
         var dal = _mapper.Map<Document>(doc);
         var created = await _repo.AddAsync(dal);
@@ -40,7 +41,8 @@ public class DocumentService : IDocumentService
 
     public async Task<bool> UpdateAsync(BlDocument doc)
     {
-        await _validator.ValidateAndThrowAsync(doc, opts => opts.IncludeRuleSets("Update"));
+        var res = await _validator.ValidateAsync(doc, o => o.IncludeRuleSets("Update"));
+        if (!res.IsValid) throw new ValidationException(res.Errors);
 
         var dal = _mapper.Map<Document>(doc);
         return await _repo.UpdateAsync(dal);
