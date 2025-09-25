@@ -15,7 +15,7 @@
       ASPNETCORE_URLS: http://+:8080
       ASPNETCORE_ENVIRONMENT: Development
       ConnectionStrings__Postgres: Host=db;Port=5432;Database=dmsdb;Username=dms;Password=dmsPW
-    depends_on: [db] # waiting until container is running
+    depends_on: [db]
 
 volumes:
   pgdata:
