@@ -17,5 +17,16 @@
       ConnectionStrings__Postgres: Host=db;Port=5432;Database=dmsdb;Username=dms;Password=dmsPW
     depends_on: [db]
 
+  ui:
+    build:
+        context: .
+        dockerfile: ./webserver/Dockerfile
+    container_name: dms_ui
+    ports:
+        - "8081:80"
+    depends_on:
+        - api
+
+
 volumes:
   pgdata:
