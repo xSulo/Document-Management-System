@@ -8,6 +8,20 @@
     ports: ["5432:5432"]
     volumes: [pgdata:/var/lib/postgresql/data]
 
+  rabbit:
+    image: rabbitmq:3.13-management
+    ports:
+        - "5672:5672"     
+        - "15672:15672"
+    environment:
+        RABBITMQ_DEFAULT_USER: dev
+        RABBITMQ_DEFAULT_PASS: dev
+    healthcheck:
+        test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+        interval: 10s
+        timeout: 5s
+        retries: 10
+
   api:
     build: ./dms
     ports: ["8080:8080"]
@@ -15,7 +29,29 @@
       ASPNETCORE_URLS: http://+:8080
       ASPNETCORE_ENVIRONMENT: Development
       ConnectionStrings__Postgres: Host=db;Port=5432;Database=dmsdb;Username=dms;Password=dmsPW
-    depends_on: [db]
+      RabbitMq__HostName: rabbit
+      RabbitMq__Port: 5672
+      RabbitMq__UserName: dev
+      RabbitMq__Password: dev
+      RabbitMq__Exchange: dms.exchange
+      RabbitMq__Queue: dms.ocr
+      RabbitMq__RoutingKey: ocr.new
+    depends_on:
+        - db
+        - rabbit
+
+  ocrworker:
+    build: ./dms.Ocr.Worker
+    environment:
+        RabbitMq__HostName: rabbit
+        RabbitMq__Port: 5672
+        RabbitMq__UserName: dev
+        RabbitMq__Password: dev
+        RabbitMq__Exchange: dms.exchange
+        RabbitMq__Queue: dms.ocr
+        RabbitMq__RoutingKey: ocr.new
+    depends_on:
+        - rabbit
 
   ui:
     build:

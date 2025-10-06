@@ -1,4 +1,6 @@
 using dms.Api.Mapping;
+using dms.Api.Configuration;
+using dms.Api.Messaging;
 using dms.Bl.Interfaces;
 using dms.Bl.Mapping;
 using dms.Bl.Services;
@@ -29,6 +31,8 @@ builder.Services.AddOpenApi();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddValidatorsFromAssemblyContaining<DocumentValidator>();
+builder.Services.Configure<RabbitMqOptions>(builder.Configuration.GetSection("RabbitMq"));
+builder.Services.AddSingleton<IRabbitMqPublisher, RabbitMqPublisher>();
 
 var app = builder.Build();
 

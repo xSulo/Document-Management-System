@@ -4,6 +4,9 @@ using dms.Api.Dtos;
 using dms.Bl.Entities;
 using dms.Bl.Interfaces;
 using Microsoft.AspNetCore.Mvc;
+using dms.Api.Messaging;
+using dms.Api.Configuration;
+using Microsoft.Extensions.Options;
 
 namespace dms.Api.Controllers;
 
@@ -13,11 +16,12 @@ public class DocumentsController : ControllerBase
 {
     private readonly IDocumentService _svc;
     private readonly IMapper _mapper;
+    private readonly IRabbitMqPublisher _publisher;
+    private readonly IOptions<RabbitMqOptions> _mqOpt;
 
-    public DocumentsController(IDocumentService svc, IMapper mapper)
+    public DocumentsController(IDocumentService svc, IMapper mapper, IRabbitMqPublisher publisher, IOptions<RabbitMqOptions> mqOpt)
     {
-        _svc = svc;
-        _mapper = mapper;
+        _svc = svc; _mapper = mapper; _publisher = publisher; _mqOpt = mqOpt;
     }
 
     [HttpGet]
@@ -47,6 +51,10 @@ public class DocumentsController : ControllerBase
             var entity = _mapper.Map<BlDocument>(input);
             var created = await _svc.AddAsync(entity);
             var dto = _mapper.Map<DocumentDto>(created);
+
+            await _publisher.PublishAsync(_mqOpt.Value.RoutingKey,
+                new OcrJobMessage(dto.Id, dto.Title, dto.FilePath, DateTimeOffset.UtcNow),
+                HttpContext.RequestAborted);
 
             return CreatedAtAction(nameof(GetById), new { id = dto.Id }, dto);
         }
