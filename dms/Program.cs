@@ -52,4 +52,12 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseAuthorization();
 app.MapControllers();
+
+app.MapGet("/health", async (dms.Dal.Context.DocumentContext db) =>
+{
+    try { return await db.Database.CanConnectAsync() ? Results.Ok(new { status = "Healthy" }) : Results.StatusCode(503); }
+    catch { return Results.StatusCode(503); }
+});
+
+
 app.Run();

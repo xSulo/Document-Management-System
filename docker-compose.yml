@@ -51,7 +51,9 @@
         RabbitMq__Queue: dms.ocr
         RabbitMq__RoutingKey: ocr.new
     depends_on:
-        - rabbit
+        rabbit:
+            condition: service_healthy
+    restart: unless-stopped
 
   ui:
     build:

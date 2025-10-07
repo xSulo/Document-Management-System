@@ -1,0 +1,11 @@
+### Create
+POST http://localhost:8080/api/documents
+Content-Type: application/json
+
+{ "title": "Demo", "filePath": "/files/demo.pdf" }
+
+### List
+GET http://localhost:8080/api/documents
+
+### Health
+GET http://localhost:8080/health
