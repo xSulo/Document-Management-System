@@ -2,13 +2,19 @@
 using dms.Dal.Entities;
 using dms.Dal.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace dms.Dal.Repositories;
 
 public class DocumentRepository : IDocumentRepository
 {
+    private readonly ILogger<DocumentRepository> _log;
     private readonly DocumentContext _ctx;
-    public DocumentRepository(DocumentContext ctx) => _ctx = ctx;
+
+    public DocumentRepository(DocumentContext ctx, ILogger<DocumentRepository> log)
+    {
+        _ctx = ctx; _log = log;
+    }
 
     public async Task<IReadOnlyList<Document>> GetAllAsync() =>
         await _ctx.Documents.AsNoTracking().ToListAsync();
@@ -18,6 +24,7 @@ public class DocumentRepository : IDocumentRepository
 
     public async Task<Document> AddAsync(Document doc)
     {
+        _log.LogDebug("DB insert {Title}", doc.Title);
         _ctx.Documents.Add(doc);
         await _ctx.SaveChangesAsync();
         return doc;
