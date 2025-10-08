@@ -8,7 +8,6 @@ using dms.Dal.Context;
 using dms.Dal.Interfaces;
 using dms.Dal.Repositories;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using FluentValidation;
 using dms.Validation;
@@ -37,12 +36,30 @@ builder.Services.Configure<FileStorageOptions>(builder.Configuration.GetSection(
 builder.Services.Configure<RabbitMqOptions>(builder.Configuration.GetSection("RabbitMq"));
 builder.Services.AddSingleton<IRabbitMqPublisher, RabbitMqPublisher>();
 
+builder.Services.AddCors(opt =>
+{
+    opt.AddPolicy("AllowAll", p =>
+        p.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod());
+});
+
 var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
 {
     var ctx = scope.ServiceProvider.GetRequiredService<DocumentContext>();
-    ctx.Database.Migrate();
+    for (int i = 0; i < 10; i++)
+    {
+        try
+        {
+            ctx.Database.Migrate();
+            break;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"DB not ready ({ex.Message}), retrying in 3s...");
+            Thread.Sleep(3000);
+        }
+    }
 }
 
 if (app.Environment.IsDevelopment())
@@ -54,8 +71,8 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseGlobalExceptionHandling();
-app.UseAuthorization();
 app.UseCors("AllowAll");
+app.UseAuthorization();
 app.MapControllers();
 
 var uploadsPath = Path.Combine(app.Environment.ContentRootPath, "storage", "uploads");
@@ -72,6 +89,5 @@ app.MapGet("/health", async (dms.Dal.Context.DocumentContext db) =>
     try { return await db.Database.CanConnectAsync() ? Results.Ok(new { status = "Healthy" }) : Results.StatusCode(503); }
     catch { return Results.StatusCode(503); }
 });
-
 
 app.Run();
