@@ -8,6 +8,8 @@ using dms.Api.Messaging;
 using dms.Api.Configuration;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Logging;
+using dms.Api.Exceptions;
+
 
 namespace dms.Api.Controllers;
 
@@ -41,7 +43,11 @@ public class DocumentsController : ControllerBase
     public async Task<ActionResult<DocumentDto>> GetById(long id)
     {
         var doc = await _svc.GetByIdAsync(id);
-        return doc is null ? NotFound() : Ok(_mapper.Map<DocumentDto>(doc));
+
+        if (doc == null)
+            throw new KeyNotFoundException($"Document with ID {id} not found."); 
+
+        return Ok(_mapper.Map<DocumentDto>(doc));
     }
 
     [HttpPost]
@@ -78,60 +84,41 @@ public class DocumentsController : ControllerBase
             UploadedAt = DateTime.UtcNow
         };
 
-        try
+        
+        var created = await _svc.AddAsync(entity);
+        var dto = _mapper.Map<DocumentDto>(created);
+
+        using (_log.BeginScope(new Dictionary<string, object?>
         {
-            var created = await _svc.AddAsync(entity);
-            var dto = _mapper.Map<DocumentDto>(created);
+            ["DocumentId"] = dto.Id,
+            ["Title"] = dto.Title
+        }))
+        {
+            _log.LogInformation("Document uploaded, publishing OCR job...");
 
-            using (_log.BeginScope(new Dictionary<string, object?>
+
+            var absoluteForWorker = Path.Combine(root, dto.FilePath ?? string.Empty);
+            var message = new OcrJobMessage(
+                dto.Id,
+                dto.Title ?? string.Empty,
+                absoluteForWorker,
+                DateTimeOffset.UtcNow
+            );
+
+            try
             {
-                ["DocumentId"] = dto.Id,
-                ["Title"] = dto.Title
-            }))
-            {
-                _log.LogInformation("Document uploaded, publishing OCR job...");
-
-                try
-                {
-                    var absoluteForWorker = Path.Combine(root, dto.FilePath ?? string.Empty);
-                    var message = new OcrJobMessage(
-                        dto.Id,
-                        dto.Title ?? string.Empty,
-                        absoluteForWorker,
-                        DateTimeOffset.UtcNow
-                    );
-
-                    await _publisher.PublishAsync(_mqOpt.Value.RoutingKey, message);
-                    _log.LogInformation("OCR job published successfully.");
-                }
-                catch (Exception ex)
-                {
-                    _log.LogError(ex, "Publishing OCR job failed.");
-                    return Problem(title: "Queue unavailable", statusCode: StatusCodes.Status503ServiceUnavailable);
-                }
+                await _publisher.PublishAsync(_mqOpt.Value.RoutingKey, message);
+                _log.LogInformation("OCR job published successfully.");
             }
-
-            return CreatedAtAction(nameof(GetById), new { id = dto.Id }, dto);
-        }
-        catch (ValidationException ex)
-        {
-            var errors = ex.Errors
-                .GroupBy(e => e.PropertyName ?? string.Empty)
-                .ToDictionary(g => g.Key, g => g.Select(e => e.ErrorMessage).ToArray());
-
-            return ValidationProblem(new ValidationProblemDetails(errors)
+            catch (Exception ex)
             {
-                Status = StatusCodes.Status400BadRequest,
-                Title = "Validation failed"
-            });
+                _log.LogError(ex, "Publishing OCR job failed.");
+                throw new QueueUnavailableException("Failed to publish OCR job to RabbitMQ.", ex);
+            }
         }
-        catch (Exception ex)
-        {
-            _log.LogError(ex, "Unexpected error while uploading document.");
-            return Problem(title: "Unexpected server error", statusCode: StatusCodes.Status500InternalServerError);
-        }
-    }
 
+        return CreatedAtAction(nameof(GetById), new { id = dto.Id }, dto);
+    }
 
 
     [HttpPut("{id:long}")]
@@ -140,34 +127,26 @@ public class DocumentsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Update(long id, [FromBody] DocumentUpdateDto input)
     {
-        try
-        {
-            var entity = _mapper.Map<BlDocument>(input);
-            entity.Id = id;
+        var entity = _mapper.Map<BlDocument>(input);
+        entity.Id = id;
 
-            var updated = await _svc.UpdateAsync(entity);
-            if (!updated) return NotFound();
+        var updated = await _svc.UpdateAsync(entity);
+        if (!updated)
+            throw new KeyNotFoundException($"Document with ID {id} not found.");
 
-            var result = _mapper.Map<DocumentDto>(entity);
-            return Ok(result);
-        }
-        catch (ValidationException ex)
-        {
-            var errors = ex.Errors
-                .GroupBy(e => e.PropertyName ?? string.Empty)
-                .ToDictionary(g => g.Key, g => g.Select(e => e.ErrorMessage).ToArray());
-
-            return ValidationProblem(new ValidationProblemDetails(errors)
-            {
-                Status = StatusCodes.Status400BadRequest,
-                Title = "Validation failed"
-            });
-        }
+        var result = _mapper.Map<DocumentDto>(entity);
+        return Ok(result);
     }
 
     [HttpDelete("{id:long}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> Delete(long id) =>
-        await _svc.DeleteAsync(id) ? NoContent() : NotFound();
+    public async Task<IActionResult> Delete(long id)
+    {
+        var deleted = await _svc.DeleteAsync(id);
+        if (!deleted)
+            throw new KeyNotFoundException($"Document with ID {id} not found."); // handled globally
+
+        return NoContent();
+    }
 }
