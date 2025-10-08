@@ -36,6 +36,9 @@
       RabbitMq__Exchange: dms.exchange
       RabbitMq__Queue: dms.ocr
       RabbitMq__RoutingKey: ocr.new
+      Storage__UploadsRoot: /app/storage/uploads
+    volumes:
+      - ./storage/uploads:/app/storage/uploads
     depends_on:
         - db
         - rabbit
