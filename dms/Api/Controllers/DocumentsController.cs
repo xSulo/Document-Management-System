@@ -20,10 +20,11 @@ public class DocumentsController : ControllerBase
     private readonly IRabbitMqPublisher _publisher;
     private readonly IOptions<RabbitMqOptions> _mqOpt;
     private readonly ILogger<DocumentsController> _log;
+    private readonly IOptions<FileStorageOptions> _storage;
 
-    public DocumentsController(IDocumentService svc, IMapper mapper, IRabbitMqPublisher publisher, IOptions<RabbitMqOptions> mqOpt, ILogger<DocumentsController> log)
+    public DocumentsController(IDocumentService svc, IMapper mapper, IRabbitMqPublisher publisher, IOptions<RabbitMqOptions> mqOpt, ILogger<DocumentsController> log, IOptions<FileStorageOptions> storage)
     {
-        _svc = svc; _mapper = mapper; _publisher = publisher; _mqOpt = mqOpt; _log = log;
+        _svc = svc; _mapper = mapper; _publisher = publisher; _mqOpt = mqOpt; _log = log; _storage = storage;
     }
 
     [HttpGet]
@@ -44,36 +45,69 @@ public class DocumentsController : ControllerBase
     }
 
     [HttpPost]
+    [Consumes("multipart/form-data")]
     [ProducesResponseType(typeof(DocumentDto), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult<DocumentDto>> Create([FromBody] DocumentCreateDto input)
+    public async Task<ActionResult<DocumentDto>> Upload([FromForm] DocumentUploadDto input)
     {
+        if (input.File == null || input.File.Length == 0)
+            return BadRequest("No file was uploaded.");
+
+        if (!input.File.FileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
+            return BadRequest("Only PDF files are allowed.");
+
+        var root = _storage.Value.UploadsRoot;
+        Directory.CreateDirectory(root);
+
+        var originalBase = Path.GetFileNameWithoutExtension(input.File.FileName);
+        var safeBase = string.Concat(originalBase.Where(char.IsLetterOrDigit));
+        if (string.IsNullOrWhiteSpace(safeBase)) safeBase = "document";
+
+        var uniqueName = $"{safeBase}_{Guid.NewGuid():N}.pdf";
+        var absPath = Path.Combine(root, uniqueName);
+
+        await using (var fs = System.IO.File.Create(absPath))
+        {
+            await input.File.CopyToAsync(fs);
+        }
+
+        var entity = new BlDocument
+        {
+            Title = input.Title,
+            FilePath = uniqueName,
+            UploadedAt = DateTime.UtcNow
+        };
+
         try
         {
-            var entity = _mapper.Map<BlDocument>(input);
             var created = await _svc.AddAsync(entity);
             var dto = _mapper.Map<DocumentDto>(created);
 
-            using (_log.BeginScope(new Dictionary<string, object>
+            using (_log.BeginScope(new Dictionary<string, object?>
             {
                 ["DocumentId"] = dto.Id,
-                ["Title"] = dto.Title ?? string.Empty
+                ["Title"] = dto.Title
             }))
             {
-                _log.LogInformation("Document created, publishing OCR job...");
+                _log.LogInformation("Document uploaded, publishing OCR job...");
+
                 try
                 {
-                    await _publisher.PublishAsync(
-                        _mqOpt.Value.RoutingKey,
-                        new OcrJobMessage(dto.Id, dto.Title ?? string.Empty, dto.FilePath ?? string.Empty, DateTimeOffset.UtcNow),
-                        HttpContext.RequestAborted);
+                    var absoluteForWorker = Path.Combine(root, dto.FilePath ?? string.Empty);
+                    var message = new OcrJobMessage(
+                        dto.Id,
+                        dto.Title ?? string.Empty,
+                        absoluteForWorker,
+                        DateTimeOffset.UtcNow
+                    );
 
-                    _log.LogInformation("OCR job published.");
+                    await _publisher.PublishAsync(_mqOpt.Value.RoutingKey, message);
+                    _log.LogInformation("OCR job published successfully.");
                 }
                 catch (Exception ex)
                 {
                     _log.LogError(ex, "Publishing OCR job failed.");
-                    return Problem(title: "Queue unavailable", statusCode: 503);
+                    return Problem(title: "Queue unavailable", statusCode: StatusCodes.Status503ServiceUnavailable);
                 }
             }
 
@@ -91,7 +125,14 @@ public class DocumentsController : ControllerBase
                 Title = "Validation failed"
             });
         }
+        catch (Exception ex)
+        {
+            _log.LogError(ex, "Unexpected error while uploading document.");
+            return Problem(title: "Unexpected server error", statusCode: StatusCodes.Status500InternalServerError);
+        }
     }
+
+
 
     [HttpPut("{id:long}")]
     [ProducesResponseType(typeof(DocumentDto), StatusCodes.Status200OK)]

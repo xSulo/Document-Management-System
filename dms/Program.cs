@@ -9,6 +9,7 @@ using dms.Dal.Interfaces;
 using dms.Dal.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.FileProviders;
 using FluentValidation;
 using dms.Validation;
 
@@ -31,6 +32,7 @@ builder.Services.AddOpenApi();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddValidatorsFromAssemblyContaining<DocumentValidator>();
+builder.Services.Configure<FileStorageOptions>(builder.Configuration.GetSection("Storage"));
 builder.Services.Configure<RabbitMqOptions>(builder.Configuration.GetSection("RabbitMq"));
 builder.Services.AddSingleton<IRabbitMqPublisher, RabbitMqPublisher>();
 
@@ -52,6 +54,15 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseAuthorization();
 app.MapControllers();
+
+var uploadsPath = Path.Combine(app.Environment.ContentRootPath, "storage", "uploads");
+Directory.CreateDirectory(uploadsPath);
+
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(uploadsPath),
+    RequestPath = "/files"
+});
 
 app.MapGet("/health", async (dms.Dal.Context.DocumentContext db) =>
 {
