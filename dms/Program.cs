@@ -12,6 +12,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using FluentValidation;
 using dms.Validation;
+using dms.Api.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -52,7 +53,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseGlobalExceptionHandling();
 app.UseAuthorization();
+app.UseCors("AllowAll");
 app.MapControllers();
 
 var uploadsPath = Path.Combine(app.Environment.ContentRootPath, "storage", "uploads");
