@@ -6,12 +6,12 @@ using dms.Dal.Repositories;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
+using Microsoft.Extensions.Logging.Abstractions;
 
 public class DocumentRepositoryTests
 {
     private static (DocumentRepository Repo, DocumentContext Ctx, SqliteConnection Conn) CreateRepo()
     {
-        // relational In-Memory DB (SQLite) -> more realistic tests than EF InMemory
         var conn = new SqliteConnection("Filename=:memory:");
         conn.Open();
 
@@ -20,8 +20,10 @@ public class DocumentRepositoryTests
             .Options;
 
         var ctx = new DocumentContext(options);
-        ctx.Database.EnsureCreated();   // EnsureCreated = create tables in memory
-        return (new DocumentRepository(ctx), ctx, conn);
+        ctx.Database.EnsureCreated();
+
+        var logger = NullLogger<DocumentRepository>.Instance;  
+        return (new DocumentRepository(ctx, logger), ctx, conn);
     }
 
     [Fact]

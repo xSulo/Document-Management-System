@@ -5,20 +5,21 @@ using FluentValidation;
 using FluentValidation.Results;
 using Moq;
 using Xunit;
-
 using dms.Bl.Entities;
 using dms.Bl.Services;
 using dms.Dal.Entities;
 using dms.Dal.Interfaces;
+using Microsoft.Extensions.Logging;
 
 public class DocumentServiceTests
 {
     private readonly Mock<IDocumentRepository> _repo = new();
     private readonly Mock<IValidator<BlDocument>> _validator = new();
     private readonly Mock<IMapper> _mapper = new();
+    private readonly Mock<ILogger<DocumentService>> _log = new();
 
     private DocumentService CreateSut() =>
-        new DocumentService(_repo.Object, _validator.Object, _mapper.Object);
+        new DocumentService(_repo.Object, _validator.Object, _mapper.Object, _log.Object);
 
     // ---------- Validator Helpers ----------
     private static ValidationResult Valid() => new();

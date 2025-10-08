@@ -1,4 +1,6 @@
 using dms.Api.Mapping;
+using dms.Api.Configuration;
+using dms.Api.Messaging;
 using dms.Bl.Interfaces;
 using dms.Bl.Mapping;
 using dms.Bl.Services;
@@ -7,8 +9,10 @@ using dms.Dal.Interfaces;
 using dms.Dal.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.FileProviders;
 using FluentValidation;
 using dms.Validation;
+using dms.Api.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -29,6 +33,9 @@ builder.Services.AddOpenApi();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddValidatorsFromAssemblyContaining<DocumentValidator>();
+builder.Services.Configure<FileStorageOptions>(builder.Configuration.GetSection("Storage"));
+builder.Services.Configure<RabbitMqOptions>(builder.Configuration.GetSection("RabbitMq"));
+builder.Services.AddSingleton<IRabbitMqPublisher, RabbitMqPublisher>();
 
 var app = builder.Build();
 
@@ -46,6 +53,25 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseGlobalExceptionHandling();
 app.UseAuthorization();
+app.UseCors("AllowAll");
 app.MapControllers();
+
+var uploadsPath = Path.Combine(app.Environment.ContentRootPath, "storage", "uploads");
+Directory.CreateDirectory(uploadsPath);
+
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(uploadsPath),
+    RequestPath = "/files"
+});
+
+app.MapGet("/health", async (dms.Dal.Context.DocumentContext db) =>
+{
+    try { return await db.Database.CanConnectAsync() ? Results.Ok(new { status = "Healthy" }) : Results.StatusCode(503); }
+    catch { return Results.StatusCode(503); }
+});
+
+
 app.Run();
