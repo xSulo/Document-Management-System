@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { DocumentsApi } from "../services/api.js";
 
@@ -8,38 +8,60 @@ export default function Detail() {
     const [err, setErr] = useState("");
 
     useEffect(() => {
-        DocumentsApi.get(id).then(setDoc).catch(e => setErr(e.message));
+        DocumentsApi.get(id).then(setDoc).catch((e) => setErr(e.message));
     }, [id]);
 
-    if (err) return <p style={{ color: "crimson" }}>Error: {err}</p>;
-    if (!doc) return <p>Loading�</p>;
+    if (err)
+        return <p className="text-center text-red-500 font-semibold">Error: {err}</p>;
+    if (!doc)
+        return <p className="text-center text-indigo-500 font-medium">Loading…</p>;
 
     const fileUrl = `http://localhost:8080/files/${doc.filePath}`;
 
     return (
-        <div style={{ maxWidth: "800px", margin: "0 auto" }}>
-            <h1>{doc.title}</h1>
-            <p><strong>ID:</strong> {doc.id}</p>
-            <p><strong>Uploaded:</strong> {new Date(doc.uploadedAt).toLocaleString()}</p>
+        <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8 max-w-4xl mx-auto">
+            <h1 className="text-3xl font-semibold text-indigo-600 mb-4">{doc.title}</h1>
 
-            <h3>Preview</h3>
-            <object
-                data={fileUrl}
-                type="application/pdf"
-                width="100%"
-                height="600px"
-                style={{ border: "1px solid #ccc", borderRadius: "8px" }}
-            >
-                <p>
-                    Your browser does not support PDF preview.{" "}
-                    <a href={fileUrl} target="_blank" rel="noopener noreferrer">
-                        Open PDF
-                    </a>
+            <div className="space-y-2 mb-6">
+                <p className="text-gray-600">
+                    <strong>ID:</strong> {doc.id}
                 </p>
-            </object>
+                <p className="text-gray-600">
+                    <strong>Uploaded:</strong> {new Date(doc.uploadedAt).toLocaleString()}
+                </p>
+            </div>
 
-            <br />
-            <Link to="/">Back</Link>
+            <div className="mb-8">
+                <h2 className="text-lg font-medium text-gray-700 mb-3">PDF Preview</h2>
+                <object
+                    data={fileUrl}
+                    type="application/pdf"
+                    width="100%"
+                    height="600px"
+                    className="border border-gray-200 rounded-xl shadow-md"
+                >
+                    <p className="p-4 text-gray-500">
+                        PDF preview not supported.{" "}
+                        <a
+                            href={fileUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-indigo-600 underline"
+                        >
+                            Open PDF
+                        </a>
+                    </p>
+                </object>
+            </div>
+
+            <div className="text-right">
+                <Link
+                    to="/"
+                    className="text-indigo-600 hover:text-indigo-800 font-semibold text-sm transition"
+                >
+                    ← Back to Dashboard
+                </Link>
+            </div>
         </div>
     );
 }
