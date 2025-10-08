@@ -7,7 +7,6 @@ export default function App() {
     return (
         <BrowserRouter>
             <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-cyan-50 text-gray-800 flex flex-col">
-                {/* 🌟 Navbar */}
                 <header className="bg-white/80 backdrop-blur-md shadow-sm border-b border-gray-100 sticky top-0 z-40">
                     <nav className="container mx-auto flex justify-between items-center px-8 py-4">
                         <h1 className="text-2xl font-extrabold text-indigo-600 tracking-tight">
@@ -35,7 +34,6 @@ export default function App() {
                     </nav>
                 </header>
 
-                {/* 📄 Page content */}
                 <main className="flex-grow container mx-auto px-6 py-10">
                     <Routes>
                         <Route path="/" element={<Dashboard />} />
@@ -44,7 +42,6 @@ export default function App() {
                     </Routes>
                 </main>
 
-                {/* 👣 Footer */}
                 <footer className="bg-white border-t border-gray-200 py-4 text-center text-sm text-gray-500">
                     © {new Date().getFullYear()} DMS Cloud — Manage Smarter.
                 </footer>
