@@ -35,6 +35,7 @@ builder.Services.AddValidatorsFromAssemblyContaining<DocumentValidator>();
 builder.Services.Configure<FileStorageOptions>(builder.Configuration.GetSection("Storage"));
 builder.Services.Configure<RabbitMqOptions>(builder.Configuration.GetSection("RabbitMq"));
 builder.Services.AddSingleton<IRabbitMqPublisher, RabbitMqPublisher>();
+builder.Services.AddSingleton<OcrPublisher>();
 
 builder.Services.AddCors(opt =>
 {
