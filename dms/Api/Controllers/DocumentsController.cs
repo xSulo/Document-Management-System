@@ -1,14 +1,20 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Threading;
 using AutoMapper;
-using FluentValidation;
+using dms.Api.Configuration;
 using dms.Api.Dtos;
+using dms.Api.Exceptions;
+using dms.Api.Messaging;
 using dms.Bl.Entities;
 using dms.Bl.Interfaces;
+using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
-using dms.Api.Messaging;
-using dms.Api.Configuration;
-using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Logging;
-using dms.Api.Exceptions;
+using Microsoft.Extensions.Options;
+using dms.Api.Storage;
+using dms.Api.Validation;
 
 
 namespace dms.Api.Controllers;
@@ -23,10 +29,11 @@ public class DocumentsController : ControllerBase
     private readonly IOptions<RabbitMqOptions> _mqOpt;
     private readonly ILogger<DocumentsController> _log;
     private readonly IOptions<FileStorageOptions> _storage;
+    private readonly IFileStorage _fileStorage;
 
-    public DocumentsController(IDocumentService svc, IMapper mapper, IRabbitMqPublisher publisher, IOptions<RabbitMqOptions> mqOpt, ILogger<DocumentsController> log, IOptions<FileStorageOptions> storage)
+    public DocumentsController(IDocumentService svc, IMapper mapper, IRabbitMqPublisher publisher, IOptions<RabbitMqOptions> mqOpt, ILogger<DocumentsController> log, IOptions<FileStorageOptions> storage, IFileStorage fileStorage)
     {
-        _svc = svc; _mapper = mapper; _publisher = publisher; _mqOpt = mqOpt; _log = log; _storage = storage;
+        _svc = svc; _mapper = mapper; _publisher = publisher; _mqOpt = mqOpt; _log = log; _storage = storage; _fileStorage = fileStorage;
     }
 
     [HttpGet]
@@ -54,72 +61,60 @@ public class DocumentsController : ControllerBase
     [Consumes("multipart/form-data")]
     [ProducesResponseType(typeof(DocumentDto), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult<DocumentDto>> Upload([FromForm] DocumentUploadDto input)
+    [ProducesResponseType(StatusCodes.Status415UnsupportedMediaType)]
+    [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
+    public async Task<ActionResult<DocumentDto>> Upload([FromForm] DocumentUploadDto input, CancellationToken ct)
     {
-        if (input.File == null || input.File.Length == 0)
-            return BadRequest("No file was uploaded.");
+        if (!ModelState.IsValid) return ValidationProblem(ModelState);
+        if (input.File is null || input.File.Length == 0) return BadRequest("No file was uploaded.");
 
-        if (!input.File.FileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
-            return BadRequest("Only PDF files are allowed.");
+        var isPdfExt = Path.GetExtension(input.File.FileName)
+            .Equals(".pdf", StringComparison.OrdinalIgnoreCase);
+        if (!isPdfExt) return StatusCode(StatusCodes.Status415UnsupportedMediaType, "Only .pdf files are allowed.");
 
-        var root = _storage.Value.UploadsRoot;
-        Directory.CreateDirectory(root);
+        await using var tmp = input.File.OpenReadStream();
 
-        var originalBase = Path.GetFileNameWithoutExtension(input.File.FileName);
-        var safeBase = string.Concat(originalBase.Where(char.IsLetterOrDigit));
-        if (string.IsNullOrWhiteSpace(safeBase)) safeBase = "document";
+        var isPdfContent = await FileValidators.IsPdfAsync(tmp, ct); 
+        if (!isPdfContent) return StatusCode(415, "Invalid PDF content.");
 
-        var uniqueName = $"{safeBase}_{Guid.NewGuid():N}.pdf";
-        var absPath = Path.Combine(root, uniqueName);
+        if (tmp.CanSeek) tmp.Position = 0;
 
-        await using (var fs = System.IO.File.Create(absPath))
-        {
-            await input.File.CopyToAsync(fs);
-        }
+        var stored = await _fileStorage.SaveAsync(
+            tmp,
+            "application/pdf",
+            Path.GetFileNameWithoutExtension(input.File.FileName),
+            ct);
 
         var entity = new BlDocument
         {
             Title = input.Title,
-            FilePath = uniqueName,
+            FilePath = stored.ObjectKey,
             UploadedAt = DateTime.UtcNow
         };
 
-        
         var created = await _svc.AddAsync(entity);
         var dto = _mapper.Map<DocumentDto>(created);
 
-        using (_log.BeginScope(new Dictionary<string, object?>
+        try
         {
-            ["DocumentId"] = dto.Id,
-            ["Title"] = dto.Title
-        }))
+            using (_log.BeginScope(new Dictionary<string, object?> { ["DocumentId"] = dto.Id, ["Title"] = dto.Title }))
+            {
+                _log.LogInformation("Document uploaded to MinIO, publishing OCR job...");
+
+                var msg = new OcrJobMessage(dto.Id, dto.Title ?? "", dto.FilePath ?? "", DateTimeOffset.UtcNow);
+                await _publisher.PublishAsync(_mqOpt.Value.RoutingKey, msg, ct);
+
+                _log.LogInformation("OCR job published.");
+            }
+        }
+        catch (Exception ex)
         {
-            _log.LogInformation("Document uploaded, publishing OCR job...");
-
-
-            var absoluteForWorker = Path.Combine(root, dto.FilePath ?? string.Empty);
-            var message = new OcrJobMessage(
-                dto.Id,
-                dto.Title ?? string.Empty,
-                absoluteForWorker,
-                DateTimeOffset.UtcNow
-            );
-
-            try
-            {
-                await _publisher.PublishAsync(_mqOpt.Value.RoutingKey, message);
-                _log.LogInformation("OCR job published successfully.");
-            }
-            catch (Exception ex)
-            {
-                _log.LogError(ex, "Publishing OCR job failed.");
-                throw new QueueUnavailableException("Failed to publish OCR job to RabbitMQ.", ex);
-            }
+            _log.LogError(ex, "Publishing OCR job failed.");
+            return Problem(title: "Queue unavailable", statusCode: StatusCodes.Status503ServiceUnavailable);
         }
 
         return CreatedAtAction(nameof(GetById), new { id = dto.Id }, dto);
     }
-
 
     [HttpPut("{id:long}")]
     [ProducesResponseType(typeof(DocumentDto), StatusCodes.Status200OK)]

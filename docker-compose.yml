@@ -37,7 +37,9 @@ services:
       RabbitMq__Queue: dms.ocr
       RabbitMq__RoutingKey: ocr.new
       Storage__Provider: Minio
-      Minio__Endpoint: http://minio:9000
+      Storage__Bucket: "dms-docs"
+      Storage__PublicBaseUrl: ""
+      Minio__Endpoint: minio:9000
       Minio__AccessKey: minioadmin
       Minio__SecretKey: minioadmin
       Minio__UseSSL: "false"

@@ -34,7 +34,7 @@ public class DocumentService : IDocumentService
         return _mapper.Map<IReadOnlyList<BlDocument>>(all);
     }
 
-    public async Task<BlDocument> GetByIdAsync(long id)
+    public async Task<BlDocument?> GetByIdAsync(long id)
     {
         _log.LogInformation("Retrieving document with ID={Id}", id);
         var dal = await _repo.GetByIdAsync(id);

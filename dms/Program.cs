@@ -1,5 +1,6 @@
 using dms.Api.Mapping;
 using dms.Api.Configuration;
+using dms.Api.Storage;
 using dms.Api.Messaging;
 using dms.Bl.Interfaces;
 using dms.Bl.Mapping;
@@ -12,6 +13,8 @@ using Microsoft.Extensions.FileProviders;
 using FluentValidation;
 using dms.Validation;
 using dms.Api.Middleware;
+using Microsoft.Extensions.Options;
+using Minio;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -36,6 +39,21 @@ builder.Services.Configure<FileStorageOptions>(builder.Configuration.GetSection(
 builder.Services.Configure<RabbitMqOptions>(builder.Configuration.GetSection("RabbitMq"));
 builder.Services.AddSingleton<IRabbitMqPublisher, RabbitMqPublisher>();
 builder.Services.AddSingleton<OcrPublisher>();
+
+builder.Services.Configure<FileStorageOptions>(builder.Configuration.GetSection("Storage"));
+builder.Services.Configure<MinioOptions>(builder.Configuration.GetSection("Minio"));
+
+builder.Services.AddSingleton<IMinioClient>(sp =>
+{
+    var mo = sp.GetRequiredService<IOptions<MinioOptions>>().Value;
+    var client = new MinioClient()
+        .WithEndpoint(mo.Endpoint)
+        .WithCredentials(mo.AccessKey, mo.SecretKey);
+    if (mo.UseSsl) client = client.WithSSL();
+    return client.Build();
+});
+
+builder.Services.AddSingleton<IFileStorage, MinioFileStorage>();
 
 builder.Services.AddCors(opt =>
 {
