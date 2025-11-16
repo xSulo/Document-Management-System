@@ -9,4 +9,5 @@ public interface IDocumentService
     Task<BlDocument> AddAsync(BlDocument doc);
     Task<bool> UpdateAsync(BlDocument doc);
     Task<bool> DeleteAsync(long id);
+    Task<bool> UpdateSummaryAsync(long id, string summary);
 }

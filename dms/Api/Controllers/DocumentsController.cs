@@ -133,6 +133,22 @@ public class DocumentsController : ControllerBase
         return Ok(result);
     }
 
+    [HttpPut("{id:long}/summary")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> UpdateSummary(long id, [FromBody] UpdateSummaryDto input, CancellationToken ct)
+    {
+        if (input is null || string.IsNullOrWhiteSpace(input.Summary))
+            return BadRequest("Summary must not be empty.");
+
+        await _svc.UpdateSummaryAsync(id, input.Summary);
+
+        // 204, weil der Worker keine Daten zurück braucht
+        return NoContent();
+    }
+
+
     [HttpDelete("{id:long}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

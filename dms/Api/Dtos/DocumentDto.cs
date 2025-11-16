@@ -6,4 +6,5 @@ public class DocumentDto
     public string Title { get; set; } = default!;
     public string FilePath { get; set; } = default!;
     public DateTime UploadedAt { get; set; }
+    public string? Summary { get; set; }
 }
