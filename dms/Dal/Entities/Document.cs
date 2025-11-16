@@ -6,4 +6,5 @@ public class Document
     public string? Title { get; set; }
     public string? FilePath { get; set; }
     public DateTime UploadedAt { get; set; } = DateTime.UtcNow;
+    public string? Summary { get; set; }
 }
