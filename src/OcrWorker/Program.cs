@@ -16,6 +16,7 @@ await Host.CreateDefaultBuilder(args)
         s.AddSingleton<IRabbitConsumer, RabbitConsumer>();
         s.AddSingleton<IObjectStore, MinioStore>();
         s.AddSingleton<IOcrEngine, TesseractOcr>();
+        s.AddSingleton<IGenAiPublisher, GenAiPublisher>();
         s.AddHostedService<OcrBackgroundService>();
         s.AddLogging();
     })

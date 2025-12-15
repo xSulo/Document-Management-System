@@ -133,6 +133,22 @@ public class DocumentsController : ControllerBase
         return Ok(result);
     }
 
+    [HttpPut("{id:long}/summary")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> UpdateSummary(long id, [FromBody] UpdateSummaryDto input, CancellationToken ct)
+    {
+        if (input is null || string.IsNullOrWhiteSpace(input.Summary))
+            return BadRequest("Summary must not be empty.");
+
+        await _svc.UpdateSummaryAsync(id, input.Summary);
+
+        // 204, weil der Worker keine Daten zurück braucht
+        return NoContent();
+    }
+
+
     [HttpDelete("{id:long}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -143,5 +159,23 @@ public class DocumentsController : ControllerBase
             throw new KeyNotFoundException($"Document with ID {id} not found."); // handled globally
 
         return NoContent();
+    }
+
+    [HttpGet("/files/{fileName}")]
+    public async Task<IActionResult> DownloadFile(string fileName)
+    {
+        try
+        {
+            var stream = await _fileStorage.GetAsync(fileName);
+
+            if (stream == null) return NotFound("File not found.");
+
+            return File(stream, "application/pdf");
+        }
+        catch (Exception ex)
+        {
+            _log.LogError(ex, "Error loading the file: {FileName}", fileName);
+            return NotFound();
+        }
     }
 }

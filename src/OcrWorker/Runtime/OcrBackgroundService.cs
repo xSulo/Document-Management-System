@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using OcrWorker.Contracts;
 using OcrWorker.Services;
 using System.Text.Json;
+using OcrWorker.Services;
 
 namespace OcrWorker.Runtime;
 
@@ -10,8 +11,12 @@ public sealed class OcrBackgroundService(
     ILogger<OcrBackgroundService> log,
     IRabbitConsumer bus,
     IObjectStore store,
-    IOcrEngine ocr) : BackgroundService
+    IOcrEngine ocr,
+    IGenAiPublisher genAiPublisher
+    ) : BackgroundService
 {
+    private const string BucketName = "dms-docs";
+
     protected override async Task ExecuteAsync(CancellationToken ct)
     {
         await bus.ConsumeAsync(async body =>
@@ -19,20 +24,28 @@ public sealed class OcrBackgroundService(
             OcrRequest? msg = JsonSerializer.Deserialize<OcrRequest>(body.Span);
             if (msg is null) return;
 
+            log.LogInformation("Processing DocumentId: {Id} from File: {File}", msg.DocumentId, msg.FilePath);
+
             var tmpPdf = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.pdf");
-            await store.DownloadAsync(msg.Bucket, msg.ObjectKey, tmpPdf, ct); // MinIO → lokal
+            
+            try
+            {
+                await store.DownloadAsync(BucketName, msg.FilePath, tmpPdf, ct);
 
-            // PDF → PNG (eine Seite reicht für den Proof; bei Bedarf alle Seiten)
-            var pngPath = await PdfToPng.ConvertFirstPageAsync(tmpPdf, ct);
+                var pngPath = await PdfToPng.ConvertFirstPageAsync(tmpPdf, ct);
+                var text = await ocr.ExtractTextAsync(pngPath, "eng", ct);
 
-            var lang = msg.Language ?? "eng";
-            var text = await ocr.ExtractTextAsync(pngPath, lang, ct);
+                log.LogInformation("OCR done for {Id}. Text length: {Len}", msg.DocumentId, text.Length);
 
-            log.LogInformation("OCR for {DocId}: {Snippet}",
-                msg.DocumentId, text.Length > 200 ? text[..200] : text);
+                genAiPublisher.Publish(msg.DocumentId, text, msg.Title);
+                log.LogInformation("-> Sent to GenAI Queue.");
 
-            File.Delete(tmpPdf);
-            File.Delete(pngPath);
+                if (File.Exists(pngPath)) File.Delete(pngPath);
+            }
+            finally
+            {
+                if (File.Exists(tmpPdf)) File.Delete(tmpPdf);
+            }
         }, ct);
     }
 }

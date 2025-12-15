@@ -15,6 +15,8 @@ using dms.Validation;
 using dms.Api.Middleware;
 using Microsoft.Extensions.Options;
 using Minio;
+using RabbitMQ.Client;
+using Elastic.Clients.Elasticsearch;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -37,8 +39,42 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddValidatorsFromAssemblyContaining<DocumentValidator>();
 builder.Services.Configure<FileStorageOptions>(builder.Configuration.GetSection("Storage"));
 builder.Services.Configure<RabbitMqOptions>(builder.Configuration.GetSection("RabbitMq"));
+
+builder.Services.AddSingleton<IConnection>(sp =>
+{
+    var opt = sp.GetRequiredService<IOptions<RabbitMqOptions>>().Value;
+    var logger = sp.GetRequiredService<ILogger<Program>>(); 
+
+    var factory = new ConnectionFactory
+    {
+        HostName = opt.HostName,
+        Port = opt.Port,
+        UserName = opt.UserName,
+        Password = opt.Password,
+        DispatchConsumersAsync = true
+    };
+
+    for (int i = 0; i < 10; i++)
+    {
+        try
+        {
+            var connection = factory.CreateConnection();
+            logger.LogInformation("RabbitMQ connection established.");
+            return connection;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "RabbitMQ not ready yet. Retrying in 3s ({Attempt}/10)...", i + 1);
+            Thread.Sleep(3000);
+        }
+    }
+
+    throw new Exception("Could not connect to RabbitMQ after multiple retries.");
+});
+
 builder.Services.AddSingleton<IRabbitMqPublisher, RabbitMqPublisher>();
 builder.Services.AddSingleton<OcrPublisher>();
+builder.Services.AddHostedService<GenAiResultConsumer>();
 
 builder.Services.Configure<FileStorageOptions>(builder.Configuration.GetSection("Storage"));
 builder.Services.Configure<MinioOptions>(builder.Configuration.GetSection("Minio"));
@@ -60,6 +96,11 @@ builder.Services.AddCors(opt =>
     opt.AddPolicy("AllowAll", p =>
         p.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod());
 });
+
+var elasticUri = new Uri(builder.Configuration["ElasticSearch:Url"] ?? "http://elasticsearch:9200");
+var elasticSettings = new ElasticsearchClientSettings(elasticUri)
+    .DefaultIndex("documents");
+builder.Services.AddSingleton(new ElasticsearchClient(elasticSettings));
 
 var app = builder.Build();
 

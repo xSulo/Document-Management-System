@@ -88,4 +88,27 @@ public class DocumentService : IDocumentService
         _log.LogInformation("Document deleted successfully: Id={Id}", id);
         return true;
     }
+
+    public async Task<bool> UpdateSummaryAsync(long id, string summary)
+    {
+        _log.LogInformation("Update summary requested: Id={Id}", id);
+
+        if (string.IsNullOrWhiteSpace(summary))
+            throw new ValidationException("Summary must not be empty.");
+
+        // Bestehendes Dokument laden
+        var existing = await _repo.GetByIdAsync(id);
+        if (existing is null)
+            throw new KeyNotFoundException($"Document with ID {id} not found for summary update.");
+
+        existing.Summary = summary;
+
+        var updated = await _repo.UpdateAsync(existing);
+        if (!updated)
+            throw new KeyNotFoundException($"Document with ID {id} not found for summary update.");
+
+        _log.LogInformation("Summary updated successfully: Id={Id}", id);
+        return true;
+    }
+
 }

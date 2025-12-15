@@ -12,7 +12,13 @@ public interface IRabbitConsumer
 public sealed class RabbitConsumer : IRabbitConsumer
 {
     private readonly IConfiguration _cfg;
-    public RabbitConsumer(IConfiguration cfg) => _cfg = cfg;
+    private readonly ILogger<RabbitConsumer> _logger;
+
+    public RabbitConsumer(IConfiguration cfg, ILogger<RabbitConsumer> logger)
+    {
+        _cfg = cfg;
+        _logger = logger;
+    }
 
     public Task ConsumeAsync(Func<ReadOnlyMemory<byte>, Task> handler, CancellationToken ct)
     {
@@ -33,6 +39,7 @@ public sealed class RabbitConsumer : IRabbitConsumer
 
         var connection = factory.CreateConnection();
         var channel = connection.CreateModel();
+        
         channel.QueueDeclare(queue, durable: true, exclusive: false, autoDelete: false, arguments: null);
 
         var consumer = new AsyncEventingBasicConsumer(channel);
@@ -43,8 +50,9 @@ public sealed class RabbitConsumer : IRabbitConsumer
                 await handler(ea.Body);
                 channel.BasicAck(ea.DeliveryTag, multiple: false);
             }
-            catch
+            catch (Exception ex)
             {
+                _logger.LogError(ex, "Error processing message from queue {Queue}", queue);
                 channel.BasicNack(ea.DeliveryTag, multiple: false, requeue: false);
             }
         };
