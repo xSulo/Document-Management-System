@@ -1,61 +1,118 @@
 using System;
 using System.Text;
 using System.Text.Json;
-using Microsoft.Extensions.Configuration; 
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using RabbitMQ.Client;
 
 namespace OcrWorker.Services;
 
 public interface IGenAiPublisher
 {
-    void Publish(long documentId, string text);
+    void Publish(long documentId, string text, string title);
 }
 
 public class GenAiPublisher : IGenAiPublisher, IDisposable
 {
-    private readonly IConnection _connection;
-    private readonly IModel _channel;
-    private readonly string _exchange;
-    private readonly string _routingKey;
+    private readonly ILogger<GenAiPublisher> _logger;
+    private readonly string _host;
+    private readonly int _port;
+    private readonly string _user;
+    private readonly string _pass;
 
-    public GenAiPublisher(IConfiguration config)
+    private const string QueueGenAi = "genai";
+    private const string QueueSearch = "dms.search";
+
+    private IConnection? _connection;
+    private IModel? _channel;
+
+    public GenAiPublisher(IConfiguration config, ILogger<GenAiPublisher> logger)
     {
-        var host = config["RabbitMq:HostName"] ?? "rabbit";
-        var user = config["RabbitMq:UserName"] ?? "dev";
-        var pass = config["RabbitMq:Password"] ?? "dev";
-        var port = int.Parse(config["RabbitMq:Port"] ?? "5672");
+        _logger = logger;
 
-        _exchange = config["RabbitMq:Exchange"] ?? "dms.exchange";
+        _host = config["RabbitMq:HostName"] ?? "rabbit";
+        _port = int.Parse(config["RabbitMq:Port"] ?? "5672");
+        _user = config["RabbitMq:UserName"] ?? "dev";
+        _pass = config["RabbitMq:Password"] ?? "dev";
 
-        _routingKey = "genai";
-
-        var factory = new ConnectionFactory
-        {
-            HostName = host,
-            Port = port,
-            UserName = user,
-            Password = pass
-        };
-
-        _connection = factory.CreateConnection();
-        _channel = _connection.CreateModel();
-
-        _channel.QueueDeclare(queue: _routingKey, durable: true, exclusive: false, autoDelete: false);
+        InitializeRabbitMq();
     }
 
-    public void Publish(long documentId, string text)
+    private void InitializeRabbitMq()
     {
-        var payload = new { DocumentId = documentId, Text = text };
+        try
+        {
+            var factory = new ConnectionFactory
+            {
+                HostName = _host,
+                Port = _port,
+                UserName = _user,
+                Password = _pass,
+                AutomaticRecoveryEnabled = true
+            };
+
+            _connection = factory.CreateConnection();
+            _channel = _connection.CreateModel();
+
+            _channel.QueueDeclare(queue: QueueGenAi, durable: true, exclusive: false, autoDelete: false);
+
+            _channel.QueueDeclare(queue: QueueSearch, durable: true, exclusive: false, autoDelete: false);
+
+            _logger.LogInformation("RabbitMQ connection established and queues ({Q1}, {Q2}) declared.", QueueGenAi, QueueSearch);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogCritical(ex, "Failed to initialize RabbitMQ connection.");
+            throw;
+        }
+    }
+
+    public void Publish(long documentId, string text, string title)
+    {
+        if (_channel == null || _channel.IsClosed)
+        {
+            _logger.LogWarning("RabbitMQ channel is closed. Attempting to reconnect...");
+            InitializeRabbitMq();
+        }
+
+        var payload = new
+        {
+            DocumentId = documentId,
+            Text = text,
+            Title = title,
+            Timestamp = DateTime.UtcNow 
+        };
 
         var json = JsonSerializer.Serialize(payload);
         var body = Encoding.UTF8.GetBytes(json);
 
-        _channel.BasicPublish(exchange: "", routingKey: _routingKey, basicProperties: null, body: body);
+        var properties = _channel!.CreateBasicProperties();
+        properties.Persistent = true;
+
+        _channel.BasicPublish(exchange: "",
+                              routingKey: QueueGenAi,
+                              basicProperties: properties,
+                              body: body);
+
+        _channel.BasicPublish(exchange: "",
+                              routingKey: QueueSearch,
+                              basicProperties: properties,
+                              body: body);
+
+        _logger.LogInformation("Published DocumentId {DocId} to queues '{Q1}' and '{Q2}'. Payload size: {Bytes} bytes",
+            documentId, QueueGenAi, QueueSearch, body.Length);
     }
 
     public void Dispose()
     {
-        _channel?.Close();
-        _connection?.Close();
+        try
+        {
+            _channel?.Close();
+            _connection?.Close();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error while closing RabbitMQ connection.");
+        }
     }
 }

@@ -16,6 +16,7 @@ using dms.Api.Middleware;
 using Microsoft.Extensions.Options;
 using Minio;
 using RabbitMQ.Client;
+using Elastic.Clients.Elasticsearch;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -95,6 +96,11 @@ builder.Services.AddCors(opt =>
     opt.AddPolicy("AllowAll", p =>
         p.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod());
 });
+
+var elasticUri = new Uri(builder.Configuration["ElasticSearch:Url"] ?? "http://elasticsearch:9200");
+var elasticSettings = new ElasticsearchClientSettings(elasticUri)
+    .DefaultIndex("documents");
+builder.Services.AddSingleton(new ElasticsearchClient(elasticSettings));
 
 var app = builder.Build();
 

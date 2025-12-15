@@ -37,7 +37,7 @@ public sealed class OcrBackgroundService(
 
                 log.LogInformation("OCR done for {Id}. Text length: {Len}", msg.DocumentId, text.Length);
 
-                genAiPublisher.Publish(msg.DocumentId, text);
+                genAiPublisher.Publish(msg.DocumentId, text, msg.Title);
                 log.LogInformation("-> Sent to GenAI Queue.");
 
                 if (File.Exists(pngPath)) File.Delete(pngPath);
