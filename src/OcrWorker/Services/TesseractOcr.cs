@@ -1,4 +1,5 @@
 using Tesseract;
+using System.Reflection;
 
 namespace OcrWorker.Services;
 
@@ -11,7 +12,7 @@ public sealed class TesseractOcr : IOcrEngine
 {
     public Task<string> ExtractTextAsync(string imagePath, string lang, CancellationToken ct)
     {
-        using var engine = new TesseractEngine(@"./tessdata", lang, EngineMode.Default);
+        using var engine = new TesseractEngine(null, lang, EngineMode.Default);
         using var img = Pix.LoadFromFile(imagePath);
         using var page = engine.Process(img);
         return Task.FromResult(page.GetText() ?? string.Empty);

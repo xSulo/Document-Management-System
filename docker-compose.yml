@@ -21,6 +21,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+      start_period: 10s
 
   api:
     build: ./dms
@@ -46,9 +47,12 @@ services:
     volumes:
       - ./storage/uploads:/app/storage/uploads
     depends_on:
-      - db
-      - rabbit
-      - minio
+      db:
+        condition: service_started
+      minio:
+        condition: service_started
+      rabbit:
+        condition: service_healthy
 
   minio:
     image: minio/minio:latest
@@ -83,6 +87,20 @@ services:
       minio:
         condition: service_started
     restart: unless-stopped
+
+  genaiworker:
+    build: ./src/GenAIWorker
+    environment:
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      RabbitMq__HostName: rabbit
+      RabbitMq__Port: 5672
+      RabbitMq__UserName: dev
+      RabbitMq__Password: dev
+      RabbitMq__Queue: genai
+      RabbitMq__RoutingKey: genai-result
+    depends_on:
+      rabbit:
+        condition: service_healthy
 
   ui:
     build:

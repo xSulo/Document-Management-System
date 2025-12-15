@@ -9,4 +9,5 @@ public interface IDocumentRepository
     Task<Document> AddAsync(Document doc);
     Task<bool> UpdateAsync(Document doc);
     Task<bool> DeleteAsync(long id);
+    Task UpdateSummaryAsync(long documentId, string summary);
 }
