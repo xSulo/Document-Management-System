@@ -103,4 +103,13 @@ public class DocumentRepository : IDocumentRepository
             throw new DatabaseUnavailableException("Database connection failed.", ex);
         }
     }
+
+    public async Task UpdateSummaryAsync(long documentId, string summary)
+    {
+        var doc = await _ctx.Documents.FirstOrDefaultAsync(d => d.Id == documentId);
+        if (doc is null) return;
+
+        doc.Summary = summary;
+        await _ctx.SaveChangesAsync();
+    }
 }

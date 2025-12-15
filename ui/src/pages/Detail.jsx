@@ -31,6 +31,13 @@ export default function Detail() {
                 </p>
             </div>
 
+            <div className="my-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <h3 className="font-bold text-blue-800">✨ AI Summary</h3>
+                <p className="mt-2 text-gray-700 whitespace-pre-line">
+                    {doc.summary ? doc.summary : "Generating summary..."}
+                </p>
+            </div>
+
             <div className="mb-8">
                 <h2 className="text-lg font-medium text-gray-700 mb-3">PDF Preview</h2>
                 <object
