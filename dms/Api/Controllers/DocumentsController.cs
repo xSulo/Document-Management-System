@@ -160,4 +160,22 @@ public class DocumentsController : ControllerBase
 
         return NoContent();
     }
+
+    [HttpGet("/files/{fileName}")]
+    public async Task<IActionResult> DownloadFile(string fileName)
+    {
+        try
+        {
+            var stream = await _fileStorage.GetAsync(fileName);
+
+            if (stream == null) return NotFound("File not found.");
+
+            return File(stream, "application/pdf");
+        }
+        catch (Exception ex)
+        {
+            _log.LogError(ex, "Error loading the file: {FileName}", fileName);
+            return NotFound();
+        }
+    }
 }

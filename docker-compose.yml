@@ -53,6 +53,8 @@ services:
         condition: service_started
       rabbit:
         condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
 
   minio:
     image: minio/minio:latest
@@ -65,6 +67,50 @@ services:
       MINIO_ROOT_PASSWORD: minioadmin
     volumes:
       - minio_data:/data
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.3
+    container_name: dms_elastic
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false  
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m" 
+    ports:
+      - "9200:9200"
+    volumes:
+      - elastic_data:/usr/share/elasticsearch/data
+    networks:
+      - default
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200 >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  searchworker:
+    build: ./src/SearchWorker
+    container_name: dms_search_worker
+    depends_on:
+      rabbit:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+    networks:
+      - default
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.3
+    container_name: dms_kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    ports:
+      - "5601:5601"
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    networks:
+      - default
+    mem_limit: 512m
 
   ocrworker:
     build: ./src/OcrWorker
@@ -115,3 +161,4 @@ services:
 volumes:
   pgdata:
   minio_data:
+  elastic_data:
